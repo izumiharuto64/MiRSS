@@ -50,11 +50,11 @@ BASE_URL = os.getenv("MIRSS_BASE_URL", f"http://{APP_HOST}:{APP_PORT}")
 DB_PATH = os.getenv("MIRSS_DB_PATH", "mirss.db")
 HTTP_TIMEOUT_SECONDS = float(os.getenv("MIRSS_HTTP_TIMEOUT", "12.0"))
 # 任意の事前APIキー／固定トークン指定用スロット（環境変数 MIRSS_MIAUTH_API_KEY で設定可能）
-MIAUTH_API_KEY = os.getenv("E1hyIdc6eh9hOzB9ZSH6mWJytl0MiPTC", "").strip()
+MIAUTH_API_KEY = os.getenv("APIキーを打ち込む", "").strip()
 
 # データベース排他制御用ロック
 DB_LOCK = threading.Lock()
-MIAUTH_API_KEY = os.getenv("E1hyIdc6eh9hOzB9ZSH6mWJytl0MiPTC", "").strip()
+MIAUTH_API_KEY = os.getenv("APIキーを打ち込む", "").strip()
 
 
 # ==============================================================================
