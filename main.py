@@ -49,9 +49,12 @@ APP_PORT = int(os.getenv("MIRSS_PORT", "8000"))
 BASE_URL = os.getenv("MIRSS_BASE_URL", f"http://{APP_HOST}:{APP_PORT}")
 DB_PATH = os.getenv("MIRSS_DB_PATH", "mirss.db")
 HTTP_TIMEOUT_SECONDS = float(os.getenv("MIRSS_HTTP_TIMEOUT", "12.0"))
+# 任意の事前APIキー／固定トークン指定用スロット（環境変数 MIRSS_MIAUTH_API_KEY で設定可能）
+MIAUTH_API_KEY = os.getenv("E1hyIdc6eh9hOzB9ZSH6mWJytl0MiPTC", "").strip()
 
 # データベース排他制御用ロック
 DB_LOCK = threading.Lock()
+MIAUTH_API_KEY = os.getenv("E1hyIdc6eh9hOzB9ZSH6mWJytl0MiPTC", "").strip()
 
 
 # ==============================================================================
@@ -59,9 +62,7 @@ DB_LOCK = threading.Lock()
 # ==============================================================================
 class MiAuthStartRequest(BaseModel):
     host: str = Field(..., min_length=1, max_length=255, description="Misskeyインスタンスのホスト名")
-
-
-class DemoLoginRequest(BaseModel):
+    api_key: str = Field(default="", max_length=512, description="任意のMiAuth APIキー / トークン")
     host: str = Field(default="misskey.io", max_length=255)
 
 
@@ -834,6 +835,18 @@ FRONTEND_HTML = """<!DOCTYPE html>
                     </div>
                 </div>
 
+                <div>
+                    <label for="miauth-api-key-input" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        MiAuth用 APIキー / トークン（任意）
+                    </label>
+                    <input
+                        type="password"
+                        id="miauth-api-key-input"
+                        placeholder="未入力の場合はMiAuth認可後に自動取得されます"
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-misskey-bg border border-slate-300 dark:border-misskey-border text-slate-900 dark:text-white focus:ring-2 focus:ring-misskey focus:border-misskey outline-none text-sm"
+                    >
+                </div>
+
                 <button
                     type="submit"
                     class="w-full py-3 px-4 rounded-xl bg-misskey hover:bg-misskey-hover text-white font-semibold shadow-md shadow-misskey/25 flex items-center justify-center gap-2 transition"
@@ -1129,11 +1142,12 @@ FRONTEND_HTML = """<!DOCTYPE html>
         document.getElementById('miauth-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const host = document.getElementById('instance-input').value.trim();
+            const apiKey = document.getElementById('miauth-api-key-input').value.trim();
             try {
                 const res = await fetch('/api/miauth/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ host })
+                    body: JSON.stringify({ host, api_key: apiKey })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'MiAuth開始エラー');
@@ -1544,6 +1558,9 @@ async def miauth_start(req: MiAuthStartRequest) -> JSONResponse:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    # フォーム入力または環境変数 MIAUTH_API_KEY を受け取るスロット
+    configured_api_key = req.api_key.strip() or MIAUTH_API_KEY
+
     session_id = str(uuid.uuid4())
     db.create_miauth_session(session_id=session_id, host=host)
 
@@ -1560,6 +1577,7 @@ async def miauth_start(req: MiAuthStartRequest) -> JSONResponse:
             "session_id": session_id,
             "host": host,
             "auth_url": auth_url,
+            "has_api_key": bool(configured_api_key),
         }
     )
 
